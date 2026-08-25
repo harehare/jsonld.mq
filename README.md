@@ -19,6 +19,20 @@ Copy `jsonld.mq` to your mq module directory, or place it anywhere and reference
 cp jsonld.mq ~/.local/mq/config/
 ```
 
+### HTTP Import (no local installation needed)
+
+If `mq` was built with the `http-import` feature, you can import directly from GitHub without any local setup:
+
+```sh
+mq --allow-http-import -I raw 'import "github.com/harehare/jsonld.mq" | jsonld::jsonld_nodes_by_type(., "Person")' page.html
+```
+
+Pin to a specific release with `@vX.Y.Z`:
+
+```sh
+mq --allow-http-import -I raw 'import "github.com/harehare/jsonld.mq@v0.1.0" | jsonld::jsonld_nodes_by_type(., "Person")' page.html
+```
+
 ## Usage
 
 ```sh
