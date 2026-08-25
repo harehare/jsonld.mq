@@ -1,0 +1,89 @@
+include "test"
+| include "jsonld"
+|
+
+def _jl_sample_html():
+  "<html><head>" +
+  "<script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"Article\",\"headline\":\"Hello\"}</script>" +
+  "<script type=\"application/ld+json\">[{\"@type\":\"Person\",\"name\":\"Alice\"},{\"@type\":\"Person\",\"name\":\"Bob\"}]</script>" +
+  "<script type=\"text/javascript\">var x = 1;</script>" +
+  "</head></html>"
+end
+
+# -- jsonld_extract --
+
+def test_extract_returns_raw_script_contents_in_order():
+  let result = jsonld_extract(_jl_sample_html())
+  | assert_len(result, 2)
+  | assert(contains(result[0], "\"@type\":\"Article\""))
+  | assert(contains(result[1], "\"@type\":\"Person\""))
+end
+
+def test_extract_ignores_non_ld_json_scripts():
+  let result = jsonld_extract(_jl_sample_html())
+  | assert_len(result, 2)
+end
+
+def test_extract_empty_html_returns_empty_array():
+  assert_empty(jsonld_extract("<html><head></head></html>"))
+end
+
+def test_extract_handles_whitespace_around_json():
+  let html = "<html><script type=\"application/ld+json\">\n  {\"a\": 1}\n</script></html>"
+  | assert_eq(len(jsonld_extract(html)), 1)
+end
+
+# -- jsonld_parse --
+
+def test_parse_returns_parsed_values_in_order():
+  let result = jsonld_parse(_jl_sample_html())
+  | assert_len(result, 2)
+  | assert_eq(result[0]["headline"], "Hello")
+  | assert_eq(result[1][0]["name"], "Alice")
+end
+
+def test_parse_handles_whitespace_around_json():
+  let html = "<html><script type=\"application/ld+json\">\n  {\"a\": 1}\n</script></html>"
+  | assert_eq(jsonld_parse(html), [{"a": 1}])
+end
+
+def test_parse_empty_html_returns_empty_array():
+  assert_empty(jsonld_parse("<html></html>"))
+end
+
+# -- jsonld_nodes --
+
+def test_nodes_flattens_array_blocks():
+  let result = jsonld_nodes(_jl_sample_html())
+  | assert_len(result, 3)
+  | assert_eq(result[0]["@type"], "Article")
+  | assert_eq(result[1]["name"], "Alice")
+  | assert_eq(result[2]["name"], "Bob")
+end
+
+def test_nodes_keeps_object_blocks_as_single_entries():
+  let html = "<script type=\"application/ld+json\">{\"@type\":\"Thing\"}</script>"
+  | assert_eq(jsonld_nodes(html), [{"@type": "Thing"}])
+end
+
+def test_nodes_empty_html_returns_empty_array():
+  assert_empty(jsonld_nodes("<html></html>"))
+end
+
+# -- jsonld_nodes_by_type --
+
+def test_nodes_by_type_filters_by_at_type():
+  let result = jsonld_nodes_by_type(_jl_sample_html(), "Person")
+  | assert_len(result, 2)
+  | assert_eq(map(result, fn(n): n["name"];), ["Alice", "Bob"])
+end
+
+def test_nodes_by_type_no_match_returns_empty_array():
+  assert_empty(jsonld_nodes_by_type(_jl_sample_html(), "Recipe"))
+end
+
+def test_nodes_by_type_single_object_block():
+  let result = jsonld_nodes_by_type(_jl_sample_html(), "Article")
+  | assert_len(result, 1)
+  | assert_eq(result[0]["headline"], "Hello")
+end

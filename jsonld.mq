@@ -1,0 +1,34 @@
+# JSON-LD `<script type="application/ld+json">` extractor implemented in mq
+# https://www.w3.org/TR/json-ld11/
+#
+# Operates on the raw HTML string (not the Markdown AST) via mq's `css_text`
+# builtin, since converting to Markdown discards `<script>` tags entirely.
+
+import "json"
+
+# Returns the raw (unparsed) text content of every
+# `<script type="application/ld+json">` tag in `html`, in document order.
+def jsonld_extract(html):
+  css_text(html, "script[type=\"application/ld+json\"]")
+end
+
+# Parses every JSON-LD script block in `html` and returns the resulting
+# values, in document order. A block may be a single object or an array of
+# objects (a JSON-LD "graph" of multiple nodes serialized in one script).
+def jsonld_parse(html):
+  map(jsonld_extract(html), json::json_parse)
+end
+
+# Flattens the result of `jsonld_parse` into one array of individual
+# JSON-LD nodes, expanding any script block whose top-level value is an
+# array.
+def jsonld_nodes(html):
+  fold(jsonld_parse(html), [], fn(acc, v): if (is_array(v)): acc + v else: acc + [v];)
+end
+
+# Returns every node in `html` whose `@type` equals `type_name` (a plain
+# string comparison; JSON-LD's full type-alias/context resolution is not
+# implemented).
+def jsonld_nodes_by_type(html, type_name):
+  filter(jsonld_nodes(html), fn(node): is_dict(node) && get(node, "@type") == type_name;)
+end
